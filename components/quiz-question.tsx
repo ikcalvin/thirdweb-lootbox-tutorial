@@ -7,6 +7,8 @@ import {
 } from "../pages/api/check-answer";
 import PrimaryButton from "./primary-button";
 import invariant from "tiny-invariant";
+import { useWeb3 } from "@3rdweb/hooks"
+
 
 type Props = {
   questionIndex: number;
@@ -25,6 +27,8 @@ export default function QuizQuestion({
   answers,
   nextQuestionFunction,
 }: Props) {
+ 
+  const { address, provider } = useWeb3()
   const [answerIndex, setAnswerIndex] = useState<number | undefined>(undefined);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
@@ -34,6 +38,10 @@ export default function QuizQuestion({
   const [correctAnswerWas, setCorrectAnswerWas] = useState<number | undefined>(
     undefined
   );
+
+  if (!address) {
+    return <p>Please connect your wallet to take the quiz!</p>
+  }
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -45,9 +53,16 @@ export default function QuizQuestion({
         "Answer index is required to submit"
       );
 
+      invariant(provider !== undefined, "Provider must be defined to submit an answer")
+
+      const message = "Please sign this message to confirm your identity and submit the answer.This won't cost any gas!"
+      const signedMessage = await provider.getSigner().signMessage(message)
+
       const payload: CheckAnswerPayload = {
         questionIndex,
         answerIndex,
+        message,
+        signedMessage,
       };
 
       const checkResponse = await axios.post("/api/check-answer", payload);
